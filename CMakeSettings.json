@@ -1,0 +1,81 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": ""
+    },
+    {
+      "name": "x86-Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x86" ],
+      "variables": [
+        {
+          "name": "OPENXINPUT_BUILD_EXAMPLE",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "OPENXINPUT_XUSER_MAX_COUNT",
+          "value": "32",
+          "type": "STRING"
+        },
+        {
+          "name": "OPENXINPUT_DISABLE_COM",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "OPENXINPUT_GAMEPAD_RESTRICTION_OFF",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ]
+    },
+    {
+      "name": "x64-Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64" ],
+      "variables": [
+        {
+          "name": "OPENXINPUT_BUILD_EXAMPLE",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "OPENXINPUT_XUSER_MAX_COUNT",
+          "value": "32",
+          "type": "STRING"
+        },
+        {
+          "name": "OPENXINPUT_DISABLE_COM",
+          "value": "True",
+          "type": "BOOL"
+        },
+        {
+          "name": "OPENXINPUT_GAMEPAD_RESTRICTION_OFF",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ]
+    }
+  ]
+}

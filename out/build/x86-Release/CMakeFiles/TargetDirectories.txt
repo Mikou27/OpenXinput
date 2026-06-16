@@ -1,0 +1,7 @@
+C:/Users/koumi/source/repos/OpenXinput/out/build/x86-Release/CMakeFiles/devobj.dir
+C:/Users/koumi/source/repos/OpenXinput/out/build/x86-Release/CMakeFiles/Xinput1_4.dir
+C:/Users/koumi/source/repos/OpenXinput/out/build/x86-Release/CMakeFiles/edit_cache.dir
+C:/Users/koumi/source/repos/OpenXinput/out/build/x86-Release/CMakeFiles/rebuild_cache.dir
+C:/Users/koumi/source/repos/OpenXinput/out/build/x86-Release/CMakeFiles/list_install_components.dir
+C:/Users/koumi/source/repos/OpenXinput/out/build/x86-Release/CMakeFiles/install.dir
+C:/Users/koumi/source/repos/OpenXinput/out/build/x86-Release/CMakeFiles/install/local.dir

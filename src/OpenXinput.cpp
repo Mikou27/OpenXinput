@@ -1,5 +1,11 @@
 #include "OpenXinputInternal.h"
 #include <usbspec.h>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <ctime>
+#include <cstdarg>
+#include <vector>
 
 #if(_WIN32_WINNT >= _WIN32_WINNT_WIN10)
 // XInputEnable is deprecated since Windows 10, disable the warning if needed to build Xinput.
@@ -10,6 +16,164 @@
 
 DEFINE_HIDDEN_GUID(CLSID_DeviceBroker, 0xACC56A05, 0xE277, 0x4B1E, 0xA4, 0x3E, 0x7A, 0x73, 0xE3, 0xCD, 0x6E, 0x6C);
 DEFINE_HIDDEN_GUID(GUID_8604b268_34a6_4b1a_a59f_cdbd8379fd98, 0x8604b268, 0x34a6, 0x4b1a, 0xa5, 0x9f, 0xcd, 0xbd, 0x83, 0x79, 0xfd, 0x98);
+
+void Log(const char* format, ...)
+{
+    char dllPath[MAX_PATH];
+    char logPath[MAX_PATH];
+
+    HMODULE hModule = NULL;
+
+    if (!GetModuleHandleExA(
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+        (LPCSTR)&Log,
+        &hModule))
+    {
+        return;
+    }
+
+    GetModuleFileNameA(hModule, dllPath, MAX_PATH);
+
+    char* slash = strrchr(dllPath, '\\');
+
+    if (!slash)
+        return;
+
+    *slash = '\0';
+
+    wsprintfA(logPath, "%s\\zzzz.log", dllPath);
+
+    FILE* file = fopen(logPath, "a");
+
+    if (!file)
+        return;
+
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+
+    fprintf(
+        file,
+        "[%02d:%02d:%02d] ",
+        st.wHour,
+        st.wMinute,
+        st.wSecond);
+
+    va_list args;
+
+    va_start(args, format);
+
+    vfprintf(file, format, args);
+
+    va_end(args);
+
+    fprintf(file, "\n");
+
+    fclose(file);
+}
+
+DWORD g_IndexCount = 0;
+std::vector<DWORD> g_Indexes;
+
+BOOL LoadIndexes()
+{
+    wchar_t dllPath[MAX_PATH];
+    wchar_t iniPath[MAX_PATH];
+    wchar_t buffer[512];
+
+    HMODULE hModule = NULL;
+
+    if (!GetModuleHandleExW(
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+        (LPCWSTR)&LoadIndexes,
+        &hModule))
+    {
+        Log("not working");
+        return FALSE;
+    }
+
+    GetModuleFileNameW(hModule, dllPath, MAX_PATH);
+
+    wchar_t* slash = wcsrchr(dllPath, L'\\');
+
+    if (!slash)
+    {
+        return FALSE;
+    }
+
+    *slash = L'\0';
+
+    wsprintfW(iniPath, L"%s\\index.ini", dllPath);
+
+    GetPrivateProfileStringW(
+        L"Settings",
+        L"Indexes",
+        L"",
+        buffer,
+        512,
+        iniPath);
+
+    g_IndexCount = 0;
+
+    wchar_t* context = NULL;
+    wchar_t* token = wcstok_s(buffer, L",", &context);
+
+    while (token && g_IndexCount < OpenXInputGetMaxControllerCount())
+    {
+        g_Indexes.push_back((DWORD)_wtoi(token));
+
+        token = wcstok_s(NULL, L",", &context);
+        Log("parsed index = %lu", g_Indexes[g_IndexCount]);
+
+        g_IndexCount++;
+
+        if (token == NULL)
+        {
+            Log("loop stopped at %lu", g_Indexes[0]);
+            break;
+        }
+    }
+
+    Log("working");
+    return TRUE;
+}
+
+BOOL IsAllowedIndex(DWORD dwUserIndex)
+{
+#ifndef OPENXINPUT_GAMEPAD_RESTRICTION_OFF
+    if (std::find(g_Indexes.begin(), g_Indexes.end(), dwUserIndex) != g_Indexes.end())
+    {    
+        return TRUE;
+    }
+
+    return FALSE;
+
+#else
+
+	return TRUE;
+#endif
+}
+
+
+DWORD GetCustomIndex(DWORD dwUserIndex)
+{
+#ifndef OPENXINPUT_GAMEPAD_RESTRICTION_OFF
+    DWORD index = 0;
+
+    while (!IsAllowedIndex(index))
+    {
+        index++;
+
+        if (index >= OpenXInputGetMaxControllerCount())
+        {
+            return -1;
+        }
+    }
+
+    return index;
+#else
+    return dwUserIndex;
+#endif
+}
 
 typedef struct _SP_XINPUTINFO_DATA
 { // Tuned SP_DEVINFO_DATA
@@ -3445,6 +3609,13 @@ BOOL WINAPI DllMain(HINSTANCE hInstDll, DWORD fdwReason, LPVOID lpvReserved)
             {
                 EventWriteDllLoaded(res == TRUE ? 0 : E_FAIL);
             }
+
+            #ifndef OPENXINPUT_GAMEPAD_RESTRICTION_OFF
+            LoadIndexes();
+            #endif
+
+            
+
             break;
 
         case DLL_THREAD_ATTACH:
@@ -3478,6 +3649,13 @@ void OpenXinputReleaseLibrary()
 DWORD WINAPI OpenXInputGetState(_In_ DWORD dwUserIndex, _Out_ XINPUT_STATE* pState)
 {
     DWORD result;
+    Log("OpenXInputGetState");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
 
     result = OpenXInputGetStateEx(dwUserIndex, pState);
 
@@ -3500,6 +3678,14 @@ DWORD WINAPI OpenXInputSetState(_In_ DWORD dwUserIndex, _In_ XINPUT_VIBRATION* p
     HRESULT hr;
     DWORD result;
 
+    Log("OpenXInputSetState");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
+
     if (dwUserIndex >= XUSER_MAX_COUNT || pVibration == nullptr)
         return ERROR_BAD_ARGUMENTS;
 
@@ -3521,6 +3707,15 @@ DWORD WINAPI OpenXInputGetCapabilities(_In_ DWORD dwUserIndex, _In_ DWORD dwFlag
 {
     XINPUT_CAPABILITIES_EX capabilitiesEx;
     DWORD result;
+
+    Log("OpenXInputGetCapabilities");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
+
     if (dwUserIndex >= XUSER_MAX_COUNT || pCapabilities == nullptr)
         return ERROR_BAD_ARGUMENTS;
 
@@ -3680,6 +3875,15 @@ DWORD WINAPI OpenXInputGetKeystroke(_In_ DWORD dwUserIndex, _Reserved_ DWORD dwR
     GetKeystrokeApiParam_t apiParam;
     DWORD result;
     HRESULT hr;
+
+    Log("OpenXInputGetKeystroke");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
+
     if ((dwUserIndex >= XUSER_MAX_COUNT && dwUserIndex != XUSER_INDEX_ANY) || pKeystroke == nullptr)
         return ERROR_BAD_ARGUMENTS;
 
@@ -3727,6 +3931,14 @@ DWORD WINAPI OpenXInputGetStateEx(_In_ DWORD dwUserIndex, _Out_ XINPUT_STATE* pS
     HRESULT hr;
     OPENXINPUT_STATE_FULL stateFull;
 
+    Log("OpenXInputGetStateEx");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
+
     result = OpenXInputGetStateFull(dwUserIndex, &stateFull);
     if (result == ERROR_SUCCESS)
     {
@@ -3740,6 +3952,14 @@ DWORD WINAPI OpenXInputWaitForGuideButton(_In_ DWORD dwUserIndex, _In_ HANDLE hE
 {
     HRESULT hr;
     WaitGuideButtonApiParam_t apiParam;
+
+    Log("OpenXInputWaitForGuideButton");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
 
     if (dwUserIndex >= XUSER_MAX_COUNT || pListenState == nullptr)
         return ERROR_BAD_ARGUMENTS;
@@ -3757,6 +3977,13 @@ DWORD WINAPI OpenXInputWaitForGuideButton(_In_ DWORD dwUserIndex, _In_ HANDLE hE
 DWORD WINAPI OpenXInputCancelGuideButtonWait(_In_ DWORD dwUserIndex)
 {
     HRESULT hr;
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    Log("OpenXInputCancelGuideButtonWait");
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
 
     if (dwUserIndex >= XUSER_MAX_COUNT)
         return ERROR_BAD_ARGUMENTS;
@@ -3768,6 +3995,14 @@ DWORD WINAPI OpenXInputCancelGuideButtonWait(_In_ DWORD dwUserIndex)
 DWORD WINAPI OpenXInputPowerOffController(_In_ DWORD dwUserIndex)
 {
     HRESULT hr;
+
+    Log("OpenXInputPowerOffController");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
 
     if (dwUserIndex >= XUSER_MAX_COUNT)
         return ERROR_BAD_ARGUMENTS;
@@ -3804,6 +4039,15 @@ DWORD WINAPI OpenXInputGetCapabilitiesEx(_In_ DWORD dwReserved, _In_ DWORD dwUse
     GetCapabilitiesApiParam_t apiParam;
     DWORD result;
     HRESULT hr;
+
+    Log("OpenXInputGetCapabilitiesEx");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
+
     if (dwUserIndex >= XUSER_MAX_COUNT || (dwFlags != 0 && dwFlags != XINPUT_CAPS_FFB_SUPPORTED) || pCapabilitiesEx == nullptr)
         return ERROR_BAD_ARGUMENTS;
 
@@ -3832,6 +4076,14 @@ DWORD WINAPI OpenXInputGetDeviceUSBIds(DWORD dwUserIndex, WORD* pVendorId, WORD*
     HRESULT hr;
     GetDeviceUSBIdsApiParam_t apiParam;
 
+    Log("OpenXInputGetDeviceUSBIds");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
+
     if (dwUserIndex >= XUSER_MAX_COUNT || pVendorId == nullptr || pProductId == nullptr || pInputId == nullptr)
         return ERROR_BAD_ARGUMENTS;
 
@@ -3851,6 +4103,14 @@ DWORD WINAPI OpenXInputGetStateFull(_In_  DWORD dwUserIndex, _Out_ OPENXINPUT_ST
     HRESULT hr;
     GetStateApiParam_t apiParam;
 
+    Log("OpenXInputGetStateFull");
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    if (dwUserIndex == -1)
+    {
+        return ERROR_BAD_ARGUMENTS;
+    }
+
     if (dwUserIndex >= XUSER_MAX_COUNT || pState == nullptr)
         return ERROR_BAD_ARGUMENTS;
 
@@ -3863,9 +4123,35 @@ DWORD WINAPI OpenXInputGetStateFull(_In_  DWORD dwUserIndex, _Out_ OPENXINPUT_ST
         apiParam.pState = pState;
 
         hr = XInputCore::ProcessAPIRequest(dwUserIndex, XInputInternal::DeviceInfo::g_pfnGetStateDispatcher, &apiParam, 1, FALSE);
-        result = XInputReturnCodeFromHRESULT(hr);
+        result = XInputReturnCodeFromHRESULT(hr);   
     }
     return result;
+}
+
+
+DWORD WINAPI OpenXInputGetDevicePath(DWORD dwUserIndex, LPWSTR devicePath, DWORD cchDevicePath)
+{
+    dwUserIndex = GetCustomIndex(dwUserIndex);
+
+    Log("OpenXInputGetDevicePath");
+
+    if (dwUserIndex >= XUSER_MAX_COUNT ||
+        dwUserIndex >= g_dwDeviceListSize)
+        return ERROR_BAD_ARGUMENTS;
+
+    if (!devicePath)
+        return ERROR_BAD_ARGUMENTS;
+
+    DeviceInfo_t* pDevice = g_pDeviceList[dwUserIndex];
+
+    if (!pDevice || !pDevice->lpDevicePath)
+        return ERROR_DEVICE_NOT_CONNECTED;
+
+    wcscpy_s(devicePath,
+        cchDevicePath,
+        pDevice->lpDevicePath);
+
+    return ERROR_SUCCESS;
 }
 
 #ifdef __cplusplus

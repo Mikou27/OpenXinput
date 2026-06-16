@@ -1,6 +1,7 @@
 cmake_policy(SET CMP0091 NEW)
-project(OpenXinput)
 cmake_minimum_required(VERSION 3.15)
+project(OpenXinput)
+
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -8,6 +9,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 option(OPENXINPUT_STATIC_GUIDS     "Static GUIDs instead. (Uses less dependencies)" ON)
 option(OPENXINPUT_DISABLE_COM      "Disable COM calls." ON)
+option(OPENXINPUT_GAMEPAD_RESTRICTION_OFF    "Disable use index.ini to restrict Gamepads polling per dwUserIndex." ON)
 
 set(OPENXINPUT_XUSER_MAX_COUNT 8 CACHE STRING "Max controller count supported by OpenXinput. (Can't be less than 4 because of Xinput compatibility)")
 
@@ -74,10 +76,13 @@ target_compile_definitions(${LIBRARY_NAME}
   PRIVATE
   $<$<BOOL:${OPENXINPUT_STATIC_GUIDS}>:OPENXINPUT_STATIC_GUIDS>
   $<$<BOOL:${OPENXINPUT_DISABLE_COM}>:OPENXINPUT_DISABLE_COM>
+  $<$<BOOL:${OPENXINPUT_GAMEPAD_RESTRICTION_OFF}>:OPENXINPUT_GAMEPAD_RESTRICTION_OFF>
+
   $<$<BOOL:${OPENXINPUT_XUSER_MAX_COUNT}>:OPENXINPUT_XUSER_MAX_COUNT=${OPENXINPUT_XUSER_MAX_COUNT}>
   
   PUBLIC
   $<$<BOOL:${BUILD_SHARED_LIBS}>:OPENXINPUT_BUILD_SHARED>
+
 )
 
 set_target_properties(${LIBRARY_NAME}

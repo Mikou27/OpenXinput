@@ -1,0 +1,7 @@
+# ninja log v6
+3	478	8016011789895189	CMakeFiles/devobj.dir/DEVOBJ/DEVOBJ.c.obj	eb05ae24a0f18138
+841	1512	8016011804631602	bin/Xinput1_4.dll	2b60e9fd612ebce8
+480	759	8016011797201357	dustbin/bin/devobj.dll	d8402ced049c0e72
+480	759	8016011797201357	lib/devobj.lib	d8402ced049c0e72
+841	1512	8016011804631602	lib/Xinput1_4.lib	2b60e9fd612ebce8
+7	840	8016011789939603	CMakeFiles/Xinput1_4.dir/src/OpenXinput.cpp.obj	97a6871bc1381207

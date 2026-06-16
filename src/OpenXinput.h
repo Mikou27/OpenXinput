@@ -474,6 +474,14 @@ DWORD WINAPI OpenXInputGetCapabilitiesEx
     _Out_ XINPUT_CAPABILITIES_EX* pCapabilitiesEx // Receives the capabilities
 );
 
+DWORD WINAPI OpenXInputGetDevicePath
+(
+    _In_ DWORD dwUserIndex,
+    _Out_writes_(cchDevicePath) LPWSTR devicePath,
+    _In_ DWORD cchDevicePath
+);
+
+
 #ifdef __cplusplus
 }
 #endif
